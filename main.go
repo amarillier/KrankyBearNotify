@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	appVersion     = "0.1.0"
+	appVersion     = "0.1.2"
 	appAuthor      = "Allan Marillier"
 	defaultTitle   = "Notification"
 	defaultMessage = "This is a notification message"
@@ -234,7 +234,7 @@ func main() {
 			log.Fatal("WebView forced but not available. Build with: go build -tags webview")
 		}
 		log.Println("Using WebView (HTML/CSS/JS) (forced)")
-		err := showWebViewNotification(*title, *message, *timeout, icon)
+		err := showWebViewNotification(*title, *message, *timeout, icon, *width, *height)
 		if err != nil {
 			log.Fatalf("Failed to show WebView notification: %v", err)
 		}
@@ -281,7 +281,7 @@ func main() {
 		// Try WebView first (works on all platforms, better UI)
 		if isWebViewAvailable() {
 			log.Println("Using WebView (HTML/CSS/JS) for notification")
-			err := showWebViewNotification(*title, *message, *timeout, icon)
+			err := showWebViewNotification(*title, *message, *timeout, icon, *width, *height)
 			if err != nil {
 				log.Printf("WebView failed: %v, trying basic fallback", err)
 			} else {

@@ -4,7 +4,10 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
+	"log"
+	"os"
 	"time"
 
 	webview "github.com/webview/webview_go"
@@ -12,13 +15,40 @@ import (
 
 // showWebViewNotification shows a notification using HTML/CSS/JavaScript in a webview
 // This is a fallback when OpenGL is not available but webview is
-func showWebViewNotification(title, message string, timeout int, iconPath string) error {
+func showWebViewNotification(title, message string, timeout int, iconPath string, width, height int) error {
 	// Create webview
 	w := webview.New(false)
 	defer w.Destroy()
 
 	w.SetTitle(title)
-	w.SetSize(500, 250, webview.HintNone)
+	w.SetSize(width, height, webview.HintNone)
+
+	// Load and encode the icon as base64 if provided
+	iconHTML := `<span class="icon">📢</span>`
+	if iconPath != "" {
+		if imageData, err := os.ReadFile(iconPath); err == nil {
+			// Encode to base64
+			base64Image := base64.StdEncoding.EncodeToString(imageData)
+			// Detect image type (simple detection based on file extension)
+			mimeType := "image/png"
+			if len(iconPath) > 4 {
+				ext := iconPath[len(iconPath)-4:]
+				switch ext {
+				case ".jpg", "jpeg":
+					mimeType = "image/jpeg"
+				case ".gif":
+					mimeType = "image/gif"
+				case ".bmp":
+					mimeType = "image/bmp"
+				case "webp":
+					mimeType = "image/webp"
+				}
+			}
+			iconHTML = fmt.Sprintf(`<img class="icon-img" src="data:%s;base64,%s" alt="Icon">`, mimeType, base64Image)
+		} else {
+			log.Printf("Warning: Could not read icon file: %v", err)
+		}
+	}
 
 	// Build HTML content with embedded CSS and JavaScript
 	html := fmt.Sprintf(`
@@ -74,6 +104,12 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
             margin-right: 12px;
             font-size: 32px;
         }
+        .icon-img {
+            width: 48px;
+            height: 48px;
+            margin-right: 12px;
+            object-fit: contain;
+        }
         .message {
             font-size: 16px;
             color: #666;
@@ -113,7 +149,7 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
 <body>
     <div class="notification-card">
         <div class="title">
-            <span class="icon">📢</span>
+            %s
             <span>%s</span>
         </div>
         <div class="message">%s</div>
@@ -126,7 +162,8 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
         let timeLeft = %d;
         
         function closeWindow() {
-            window.external.invoke('close');
+            // Call the Go closeApp function
+            closeApp();
         }
         
         function updateTimer() {
@@ -146,14 +183,14 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
     </script>
 </body>
 </html>
-`, title, message, timeout)
+`, iconHTML, title, message, timeout)
 
-	w.SetHtml(html)
-
-	// Handle close message from JavaScript
-	w.Bind("close", func() {
+	// Bind the close function BEFORE setting HTML and running
+	w.Bind("closeApp", func() {
 		w.Terminate()
 	})
+
+	w.SetHtml(html)
 
 	// Auto-close timer (backup in case JS doesn't work)
 	if timeout > 0 {
