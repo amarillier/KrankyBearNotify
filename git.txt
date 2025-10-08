@@ -1,0 +1,10 @@
+git init
+
+git remote add allanm https://github.com/amarillier/KrankyBearNotify
+
+
+git add README.md
+git commit -m "first commit"
+git branch -M allanm
+git remote add allanm git@github.com:amarillier/KrankyBearNotify.git
+git push -u origin allanm
