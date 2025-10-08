@@ -19,11 +19,40 @@ A cross-platform notification application built with Go and the Fyne GUI library
 
 # Features & Known Issues
 
-## OpenGL Fallback (Windows)
-- Automatically detects if OpenGL drivers are available
-- Falls back to native Windows MessageBox if OpenGL is not available
-- Useful for Windows VMs, Remote Desktop, or systems without GPU acceleration
-- Test OpenGL availability: `./krankybearnotify -check-opengl`
+## GUI Fallback System
+
+The app automatically selects the best available GUI method:
+
+### 1. **Fyne GUI** (Primary - Requires OpenGL)
+- Modern interface
+- Custom icons support
+- Auto-close with timeout
+- Full feature set
+
+### 2. **WebView GUI** (Optional Fallback - HTML/CSS/JavaScript)
+- Used when OpenGL is not available (if compiled with `-tags webview`)
+- Web based gradient UI with animations
+- Auto-close with countdown timer
+- Works in VMs and Remote Desktop
+- **Requires**: Build with `-tags webview` flag
+- **Runtime**: WebView2 on Windows, WebKit on macOS/Linux
+
+### 3. **Native Dialog** (GUI Fallback)
+- Windows: MessageBox API
+- macOS/Linux: Basic system dialogs
+- Simple text-only notifications
+- Manual close only
+
+### 4. **Wall Broadcast** (Linux No-GUI Fallback)
+- Used when no GUI is detected on Linux
+- Sends message to all logged-in users' terminals
+- Perfect for headless servers and SSH sessions
+- Formatted text broadcast with timestamps
+- Auto-expiry notifications
+
+**Test availability:**
+- OpenGL: `./krankybearnotify -check-opengl`
+- Wall: `./krankybearnotify -check-wall` (Linux only)
 
 ## Installation
 - This is a standalone / portable app
@@ -39,11 +68,31 @@ A cross-platform notification application built with Go and the Fyne GUI library
 
 ### Build from Source
 
+**Standard build:**
 ```bash
 git clone https://github.com/amarillier/krankybearnotify.git
 cd krankybearnotify
 go build
 ```
+
+**Build with WebView support (optional, for better fallback UI):**
+
+*Note: Requires webkit2gtk on Linux. No extra dependencies on macOS/Windows.*
+- macOS: See [BUILD_WEBVIEW_MACOS.md](BUILD_WEBVIEW_MACOS.md)
+- Linux: See [BUILD_WEBVIEW_LINUX.md](BUILD_WEBVIEW_LINUX.md)
+
+```bash
+# Linux: Install webkit2gtk first
+# Ubuntu/Debian: sudo apt install libwebkit2gtk-4.0-dev pkg-config
+# Fedora: sudo dnf install webkit2gtk3-devel pkg-config
+
+# Then build with webview tag
+go get github.com/webview/webview_go
+go mod tidy
+go build -tags webview
+```
+
+This enables HTML/CSS/JavaScript UI as fallback when OpenGL is not available.
 
 ### Cross-Platform Building
 
@@ -141,9 +190,14 @@ Show a notification with default settings:
 | `-title` | Notification title | "Notification" |
 | `-message` | Notification message | "This is a notification message" |
 | `-timeout` | Auto-close timeout in seconds (0 for no timeout) | 10 |
-| `-icon` | Path to icon image file (PNG, JPEG, etc.) | "" (no icon) |
+| `-width` | Window width in pixels | 400 |
+| `-height` | Window height in pixels | 250 |
+| `-icon`, `-image` | Path to icon image file (PNG, JPEG, etc.) | "" (no icon) |
 | `-check-gui` | Check if GUI mode is available and exit | false |
 | `-check-opengl` | Check if OpenGL is available and exit (Windows) | false |
+| `-check-wall` | Check if wall broadcast is available (Linux) and exit | false |
+| `-force-basic` | Force basic GUI mode (skip OpenGL, use MessageBox/WebView) | false |
+| `-force-webview` | Force WebView mode (HTML/CSS/JS UI, requires webview build) | false |
 | `-version` | Show version information and exit | false |
 | `-checkupdate`, `-cu` | Check for updates and exit | false |
 | `-h`, `-help` | Show help message with examples | - |
@@ -160,13 +214,125 @@ This will exit with code 0 if GUI is available, or code 1 if not.
 
 ### Check OpenGL Availability (Windows)
 
-On Windows systems, check if OpenGL drivers are available for Fyne:
+On Windows systems, check if OpenGL drivers are actually functional (not just if the DLL exists):
 
 ```bash
 ./krankybearnotify -check-opengl
 ```
 
-If OpenGL is not available, the app will automatically fall back to native Windows MessageBox.
+The detection performs a comprehensive test:
+- ✅ Checks if `opengl32.dll` exists
+- ✅ Verifies WGL functions are present
+- ✅ Tests device context availability
+- ✅ **Attempts to choose a pixel format** (the critical test)
+
+**Why this matters for VMs:**
+In virtualized environments (Proxmox, VirtualBox, VMware) without GPU passthrough, `opengl32.dll` exists but OpenGL doesn't actually work. The improved detection catches this by testing pixel format selection, which fails without real OpenGL drivers.
+
+If OpenGL is not available, the app automatically falls back to:
+1. WebView (if compiled with `-tags webview`)
+2. Native Windows MessageBox (always available)
+
+**Example in a VM without GPU:**
+```bash
+$ ./krankybearnotify -check-opengl
+OpenGL check: No suitable pixel format found (likely no OpenGL drivers)
+OpenGL is not available
+Will use native Windows MessageBox as fallback
+Exit code: 1
+
+$ ./krankybearnotify -title "Test" -message "This works!"
+# Automatically uses MessageBox - no crash!
+```
+
+See [OPENGL_DETECTION_IMPROVED.md](OPENGL_DETECTION_IMPROVED.md) for technical details.
+
+### Force Basic GUI Mode (VM Workaround)
+
+If you're running in a VM where OpenGL detection passes but Fyne still fails to initialize, use the `-force-basic` flag to skip OpenGL entirely:
+
+```bash
+./krankybearnotify -force-basic -title "VM Test" -message "This bypasses OpenGL"
+```
+
+**When to use:**
+- Proxmox/KVM VMs where GL context tests pass but Fyne window creation fails
+- VMs with partial OpenGL support
+- Remote Desktop sessions where OpenGL is unreliable
+- Any environment where you want guaranteed MessageBox fallback
+
+**What it does:**
+- Skips all OpenGL detection
+- Never attempts to initialize Fyne
+- Goes directly to MessageBox (Windows) or basic fallback
+- Works with `-tags webview` builds for better UI
+
+**Example for scripts:**
+```bash
+# Always use basic mode in VM
+krankybearnotify.exe -force-basic -title "Alert" -message "Server status"
+```
+
+See [IMMEDIATE_WORKAROUND.md](IMMEDIATE_WORKAROUND.md) for more details.
+
+### Force WebView Mode (Better UI Option)
+
+If you want a better UI than MessageBox with animations and auto-close support:
+
+**First, build with WebView on your Windows machine:**
+```cmd
+REM On Windows VM
+go get github.com/webview/webview_go
+go mod tidy
+go build -tags webview -o krankybearnotify.exe
+```
+
+**Then use force-webview flag:**
+```cmd
+krankybearnotify.exe -force-webview -title "Modern Alert" -message "Beautiful HTML/CSS UI!"
+```
+
+**Benefits over MessageBox:**
+- ✅ Beautiful gradient UI with animations
+- ✅ Auto-close with countdown timer  
+- ✅ Modern styling (rounded corners, shadows)
+- ✅ Professional appearance
+- ✅ No OpenGL required
+
+**Recommended for VMs:**
+```cmd
+REM Best option for your Proxmox VM
+krankybearnotify.exe -force-webview -title "Alert" -message "Much better than MessageBox!"
+```
+
+See [BUILD_WEBVIEW_WINDOWS.md](BUILD_WEBVIEW_WINDOWS.md) for detailed build instructions.
+
+**Note:** WebView requires WebView2 runtime (pre-installed on Windows 10/11). Cross-compilation from macOS is complex; build directly on Windows for best results.
+
+### Check Wall Broadcast (Linux)
+
+On Linux systems, check if the `wall` command is available for broadcasting to all logged-in users:
+
+```bash
+./krankybearnotify -check-wall
+```
+
+This is useful for headless servers or SSH sessions where no GUI is available. The app will automatically use wall broadcast as a fallback when no GUI is detected.
+
+**Example wall broadcast output:**
+```
+================================================================
+  IMPORTANT ALERT
+================================================================
+
+Your server backup has completed successfully!
+
+[This notification will be displayed for 30 seconds]
+================================================================
+Sent: 2025-10-08 14:30:45
+```
+
+All logged-in users will see this message in their terminal.
 
 ## Examples
 
@@ -194,8 +360,21 @@ If OpenGL is not available, the app will automatically fall back to native Windo
 # Use one of the bundled KrankyBear icons
 ./krankybearnotify -title "Success!" -message "Operation completed" -icon "./KrankyBearFedoraRed.png"
 
-# Use your own custom icon
-./krankybearnotify -title "Alert" -message "Custom notification" -icon "/path/to/your/icon.png"
+# Use your own custom icon (can also use -image as an alias for -icon)
+./krankybearnotify -title "Alert" -message "Custom notification" -image "/path/to/your/icon.png"
+```
+
+### Custom Window Dimensions
+
+```bash
+# Make a larger window for more content
+./krankybearnotify -title "Large Notification" -message "This is a larger window with more space for text" -width 600 -height 350
+
+# Make a smaller, compact notification
+./krankybearnotify -title "Compact" -message "Small alert" -width 300 -height 150
+
+# Custom size with icon and long message
+./krankybearnotify -title "Custom Layout" -message "A notification with custom dimensions and an icon. The text will wrap properly to fit the window width." -icon "./KrankyBearBeret.png" -width 500 -height 300
 ```
 
 ### Script Integration
@@ -237,14 +416,41 @@ The detection is desktop-agnostic and only checks for the presence of a display 
 
 #### Running on Linux Server
 
-If you're running this on a Linux server without a GUI, the application will detect this and exit gracefully:
+If you're running this on a Linux server without a GUI, the application will automatically use wall broadcast to notify all logged-in users:
 
 ```bash
+# Check GUI status
 $ ./krankybearnotify -check-gui
 GUI mode is not available
 $ echo $?
 1
+
+# Check wall broadcast status
+$ ./krankybearnotify -check-wall
+Wall broadcast is available
+Can send notifications to all logged-in users
+$ echo $?
+0
+
+# Send a notification (will use wall broadcast automatically)
+$ ./krankybearnotify -title "Server Alert" -message "Backup completed"
+GUI not available, using wall broadcast
+
+Broadcast Message from root@server
+        (somewhere) at 14:30 ...
+
+================================================================
+  SERVER ALERT
+================================================================
+
+Backup completed
+
+[This notification will be displayed for 10 seconds]
+================================================================
+Sent: 2025-10-08 14:30:45
 ```
+
+All logged-in users will see this message in their terminals.
 
 ### macOS
 
@@ -254,18 +460,44 @@ On macOS, the application checks if the WindowServer process is running. This is
 
 On Windows, the application checks if the process has access to a window station, which indicates GUI availability.
 
-**OpenGL Fallback:**
-The app automatically detects if OpenGL drivers are available. If not (common in VMs or Remote Desktop sessions), it falls back to native Windows MessageBox API for notifications. This ensures notifications work even without GPU acceleration.
+**GUI Fallback System:**
 
-Test OpenGL availability:
+The app tries multiple notification methods in order:
+
+1. **Fyne (OpenGL)** - Full-featured modern UI
+2. **WebView (HTML/JS)** - Web-based UI when OpenGL unavailable (optional build)
+3. **Native Dialog** - Basic text notifications (Windows MessageBox, etc.)
+4. **Wall Broadcast** - Terminal broadcast to all users (Linux only, when no GUI)
+
+**WebView Requirements (optional):**
+- Windows: WebView2 Runtime (usually pre-installed on Windows 10/11)
+- macOS: Uses native WebKit
+- Linux: Requires webkit2gtk
+
+**Wall Broadcast (Linux):**
+- Used automatically when no GUI is detected
+- Sends notifications to all logged-in users via terminal
+- Perfect for headless servers and SSH sessions
+- Requires `wall` command (usually pre-installed)
+
+Test methods availability:
 ```bash
+# Test OpenGL
 krankybearnotify -check-opengl
+
+# Test wall broadcast (Linux)
+krankybearnotify -check-wall
 ```
 
-**Note:** Fallback mode limitations:
-- No custom icons support
-- Auto-close timeout not supported (manual close only)
-- Simpler UI compared to Fyne
+**Fallback Comparison:**
+
+| Feature | Fyne | WebView | Native Dialog |
+|---------|------|---------|---------------|
+| Custom Icons | ✅ | ❌ | ❌ |
+| Auto-close | ✅ | ✅ | ❌ |
+| Modern UI | ✅ | ✅ | ❌ |
+| VMs/RDP | ❌ | ✅ | ✅ |
+| GPU Required | Yes | No | No |
 
 ## Development
 

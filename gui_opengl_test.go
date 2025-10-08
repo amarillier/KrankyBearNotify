@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// TestOpenGLAvailability tests OpenGL detection
-func TestOpenGLAvailability(t *testing.T) {
+// testOpenGLAvailability tests OpenGL detection
+func testOpenGLAvailability(t *testing.T) {
 	result := isOpenGLAvailable()
 
 	// On non-Windows platforms, should always return true
@@ -20,8 +20,8 @@ func TestOpenGLAvailability(t *testing.T) {
 	t.Logf("OpenGL available on %s: %v", runtime.GOOS, result)
 }
 
-// TestWindowsMessageBoxStub tests that the function exists
-func TestWindowsMessageBoxStub(t *testing.T) {
+// testWindowsMessageBoxStub tests that the function exists
+func testWindowsMessageBoxStub(t *testing.T) {
 	// This just verifies the function exists and doesn't panic
 	// On non-Windows platforms, it should return nil
 	err := showWindowsMessageBox("Test", "Test message", 0)
@@ -35,8 +35,8 @@ func TestWindowsMessageBoxStub(t *testing.T) {
 	t.Logf("Windows MessageBox stub works on %s", runtime.GOOS)
 }
 
-// TestOpenGLFallbackLogic tests the fallback decision logic
-func TestOpenGLFallbackLogic(t *testing.T) {
+// testOpenGLFallbackLogic tests the fallback decision logic
+func testOpenGLFallbackLogic(t *testing.T) {
 	hasOpenGL := isOpenGLAvailable()
 
 	if !hasOpenGL && runtime.GOOS == "windows" {
@@ -47,3 +47,5 @@ func TestOpenGLFallbackLogic(t *testing.T) {
 		t.Log("OpenGL available - Fyne GUI would be used")
 	}
 }
+
+// "Now this is not the end. It is not even the beginning of the end. But it is, perhaps, the end of the beginning." Winston Churchill, November 10, 1942

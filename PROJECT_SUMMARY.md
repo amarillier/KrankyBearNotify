@@ -25,6 +25,32 @@ The application intelligently detects if a graphical environment is available:
 - **Windows**: 
   - Checks if process has access to a window station
 
+### ✅ Multi-Tier Notification System
+The application uses an intelligent fallback hierarchy to ensure notifications are always delivered:
+
+1. **Fyne GUI** (Primary) - Full-featured OpenGL UI
+   - Modern interface with custom icons
+   - Auto-close with timeout
+   - Requires graphical environment and OpenGL
+
+2. **WebView** (Optional Fallback) - HTML/CSS/JavaScript UI
+   - WebView gradient interface with animations
+   - Works in VMs and Remote Desktop without OpenGL
+   - Requires compilation with `-tags webview`
+   - Platform-specific: WebView2 (Windows), WebKit (macOS/Linux)
+
+3. **Native Dialog** (GUI Fallback) - System dialogs
+   - Windows: MessageBox API
+   - Basic text notifications
+   - Always available in GUI environments
+
+4. **Wall Broadcast** (Linux Terminal Fallback) - NEW!
+   - Automatically used when no GUI detected on Linux
+   - Broadcasts to all logged-in users via terminal
+   - Perfect for headless servers and SSH sessions
+   - Formatted text with timestamps
+   - Zero additional dependencies
+
 ### ✅ Flexible Usage
 - Command-line interface with customizable options
 - Configurable title, message, timeout, and custom icons
@@ -40,7 +66,7 @@ The application intelligently detects if a graphical environment is available:
 - Test coverage reporting
 
 # To-do / known problems
-- Known problems - needs OpenGL drivers on some Windows
+- ~~Known problems - needs OpenGL drivers on some Windows~~ ✅ **FIXED**: Improved detection now catches VMs without OpenGL and automatically falls back to MessageBox/WebView
 
 ## Project Structure
 
@@ -52,6 +78,14 @@ KrankyBearNotify/
 ├── gui_check_windows.go       # Windows-specific GUI detection
 ├── gui_check_other.go         # Stub for other platforms
 ├── gui_check_test.go          # Tests for GUI detection
+├── gui_opengl_windows.go      # Windows OpenGL detection + MessageBox
+├── gui_opengl_other.go        # OpenGL stubs for non-Windows
+├── gui_opengl_test.go         # OpenGL tests
+├── gui_webview.go             # WebView notification (optional, -tags webview)
+├── gui_webview_stub.go        # WebView stubs when not compiled
+├── broadcast_linux.go         # Linux wall broadcast (NEW!)
+├── broadcast_other.go         # Wall broadcast stubs for non-Linux (NEW!)
+├── broadcast_test.go          # Wall broadcast tests (NEW!)
 ├── main_test.go               # Tests for main functionality
 ├── go.mod                     # Go module definition
 ├── go.sum                     # Go module checksums
@@ -59,6 +93,11 @@ KrankyBearNotify/
 ├── README.md                  # User documentation
 ├── CHANGELOG.md               # Version history
 ├── PROJECT_SUMMARY.md         # This file
+├── ICON_FEATURE.md            # Icon feature documentation
+├── WEBVIEW_FEATURE.md         # WebView feature documentation
+├── WALL_BROADCAST_FEATURE.md  # Wall broadcast documentation (NEW!)
+├── BUILD_WEBVIEW_MACOS.md     # macOS WebView build guide
+├── BUILD_WEBVIEW_LINUX.md     # Linux WebView build guide
 ├── .gitignore                 # Git ignore rules
 └── examples/                  # Example scripts
     ├── notify-example.sh      # Bash example script
@@ -111,8 +150,8 @@ The project uses Go build tags to compile platform-specific code:
 # Custom notification
 ./krankybearnotify -title "Alert" -message "Task complete!" -timeout 5
 
-# Notification with custom icon
-./krankybearnotify -title "Success" -message "Build complete!" -icon "./KrankyBearBeret.png" -timeout 5
+# Notification with custom icon (can use -icon or -image)
+./krankybearnotify -title "Success" -message "Build complete!" -image "./KrankyBearBeret.png" -timeout 5
 
 # Check GUI availability
 ./krankybearnotify -check-gui
@@ -194,8 +233,13 @@ cp krankybearnotify /usr/local/bin/
 | `-title` | string | "Notification" | Notification title |
 | `-message` | string | "This is a notification message" | Notification message |
 | `-timeout` | int | 10 | Auto-close timeout in seconds (0 = manual) |
-| `-icon` | string | "" | Path to icon image file (PNG, JPEG, etc.) |
+| `-width` | int | 400 | Window width in pixels |
+| `-height` | int | 250 | Window height in pixels |
+| `-icon`, `-image` | string | "" | Path to icon image file (PNG, JPEG, etc.) |
 | `-check-gui` | bool | false | Check GUI availability and exit |
+| `-check-opengl` | bool | false | Check OpenGL availability and exit (Windows) |
+| `-check-wall` | bool | false | Check wall broadcast availability and exit (Linux) |
+| `-checkupdate`, `-cu` | bool | false | Check for updates and exit |
 | `-version` | bool | false | Show version information and exit |
 | `-h`, `-help` | bool | false | Show help message with examples |
 

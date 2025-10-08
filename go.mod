@@ -5,6 +5,7 @@ go 1.25.1
 require (
 	fyne.io/fyne/v2 v2.6.3
 	github.com/amarillier/go-update-checker v0.0.3
+	github.com/webview/webview_go v0.0.0-20240831120633-6173450d4dd6
 )
 
 require (
