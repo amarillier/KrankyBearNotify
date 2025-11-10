@@ -25,6 +25,23 @@ A PowerShell script that demonstrates various notification scenarios.
 .\notify-example.ps1
 ```
 
+### notify-example.py (Cross-Platform)
+
+A Python script that demonstrates using the unified `notify.py` wrapper. Works on Windows, Linux, and macOS.
+
+**Usage:**
+
+```bash
+# Linux/macOS
+chmod +x notify-example.py
+./notify-example.py
+
+# Windows
+python notify-example.py
+```
+
+**Note:** This example uses the `notify.py` wrapper script (located in the parent directory), which provides a unified interface for sending notifications across all platforms.
+
 ## Examples Included
 
 1. **Simple Notification**: Shows a notification with default settings
@@ -43,7 +60,7 @@ Send a notification when a backup completes:
 
 ```bash
 # Add to crontab (crontab -e)
-0 2 * * * /usr/local/bin/backup.sh && DISPLAY=:0 /usr/local/bin/krankybearnotify -title "Backup Complete" -message "Nightly backup finished successfully"
+0 2 * * * /usr/local/bin/backup.sh && DISPLAY=:0 /usr/local/bin/notify -title "Backup Complete" -message "Nightly backup finished successfully"
 ```
 
 ### Task Scheduler (Windows)
@@ -51,7 +68,7 @@ Send a notification when a backup completes:
 Create a scheduled task that shows a notification:
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute "C:\Program Files\KrankyBear\krankybearnotify.exe" -Argument '-title "Reminder" -message "Time for a break!" -timeout 10'
+$action = New-ScheduledTaskAction -Execute "C:\Program Files\KrankyBear\notify.exe" -Argument '-title "Reminder" -message "Time for a break!" -timeout 10'
 $trigger = New-ScheduledTaskTrigger -Daily -At 3PM
 Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "Break Reminder" -Description "Shows a break reminder"
 ```
@@ -61,14 +78,14 @@ Register-ScheduledTask -Action $action -Trigger $trigger -TaskName "Break Remind
 Create a user service that shows notifications:
 
 ```ini
-# ~/.config/systemd/user/krankybear-notify@.service
+# ~/.config/systemd/user/notify@.service
 [Unit]
 Description=KrankyBear Notification: %i
 
 [Service]
 Type=oneshot
 Environment="DISPLAY=:0"
-ExecStart=/usr/local/bin/krankybearnotify -title "System Notification" -message "%i"
+ExecStart=/usr/local/bin/notify -title "System Notification" -message "%i"
 
 [Install]
 WantedBy=default.target
@@ -77,7 +94,7 @@ WantedBy=default.target
 Trigger it with:
 
 ```bash
-systemctl --user start krankybear-notify@"Your message here"
+systemctl --user start notify@"Your message here"
 ```
 
 ### Shell Script Integration
@@ -92,11 +109,11 @@ notify() {
     local timeout="${3:-10}"
     local icon="${4:-}"
     
-    if krankybearnotify -check-gui; then
+    if notify -check-gui; then
         if [ -n "$icon" ]; then
-            krankybearnotify -title "$title" -message "$message" -timeout "$timeout" -icon "$icon"
+            notify -title "$title" -message "$message" -timeout "$timeout" -icon "$icon"
         else
-            krankybearnotify -title "$title" -message "$message" -timeout "$timeout"
+            notify -title "$title" -message "$message" -timeout "$timeout"
         fi
     else
         echo "[$title] $message"
@@ -111,7 +128,50 @@ else
 fi
 ```
 
-### Python Integration
+### Python Integration (Using notify.py wrapper)
+
+The recommended way to integrate with Python is to use the `notify.py` wrapper script:
+
+```python
+#!/usr/bin/env python3
+import subprocess
+from urllib.parse import quote
+
+def notify(title, message, button="OK", icon="", timeout=5, width=400, height=200, mode=""):
+    """Send a notification using notify.py wrapper"""
+    # URL-encode parameters
+    title_enc = quote(title)
+    message_enc = quote(message)
+    button_enc = quote(button)
+    icon_enc = quote(icon) if icon else ""
+    mode_enc = quote(mode) if mode else ""
+    
+    # Build command
+    cmd = [
+        'python3',  # or 'python' on Windows
+        '../notify.py',  # Adjust path as needed
+        title_enc,
+        message_enc,
+        button_enc,
+        icon_enc,
+        str(timeout),
+        str(width),
+        str(height),
+        mode_enc
+    ]
+    
+    subprocess.run(cmd)
+
+# Example usage
+if __name__ == '__main__':
+    notify("Python Script", "Task completed successfully!", icon="./icon.png")
+```
+
+See `notify-example.py` for a complete working example.
+
+### Python Integration (Direct call to notify)
+
+Alternatively, call the notify executable directly:
 
 ```python
 #!/usr/bin/env python3
@@ -119,10 +179,10 @@ import subprocess
 import sys
 
 def notify(title, message, timeout=10, icon=None):
-    """Send a notification using krankybearnotify"""
+    """Send a notification using notify"""
     try:
         cmd = [
-            'krankybearnotify',
+            'notify',
             '-title', title,
             '-message', message,
             '-timeout', str(timeout)
@@ -155,7 +215,7 @@ function notify(title, message, timeout = 10, icon = null) {
             args.push('-icon', icon);
         }
         
-        const proc = spawn('krankybearnotify', args);
+        const proc = spawn('notify', args);
 
         proc.on('close', (code) => {
             if (code === 0) {

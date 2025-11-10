@@ -1,11 +1,11 @@
-# PowerShell example script demonstrating KrankyBear Notify usage
+# PowerShell example script demonstrating  Notify usage
 
-# Path to the krankybearnotify binary
-$NotifyBin = "..\krankybearnotify.exe"
+# Path to the notify binary
+$NotifyBin = "..\notify.exe"
 
 # Check if the binary exists
 if (-not (Test-Path $NotifyBin)) {
-    Write-Host "Error: krankybearnotify.exe not found. Please build it first with 'make build'" -ForegroundColor Red
+    Write-Host "Error: notify.exe not found. Please build it first with 'make build'" -ForegroundColor Red
     exit 1
 }
 

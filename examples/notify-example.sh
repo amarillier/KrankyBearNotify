@@ -1,12 +1,12 @@
 #!/bin/bash
-# Example script demonstrating KrankyBear Notify usage
+# Example script demonstrating  Notify usage
 
-# Path to the krankybearnotify binary
-NOTIFY_BIN="../krankybearnotify"
+# Path to the notify binary
+NOTIFY_BIN="../notify"
 
 # Check if the binary exists
 if [ ! -f "$NOTIFY_BIN" ]; then
-    echo "Error: krankybearnotify binary not found. Please build it first with 'make build'"
+    echo "Error: notify binary not found. Please build it first with 'make build'"
     exit 1
 fi
 

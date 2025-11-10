@@ -1,7 +1,12 @@
 .PHONY: all build test clean install run help
 
+.PHONY: macos
+macos: build-darwin
+.PHONY: mac
+macos: build-darwin
+
 # Binary name
-BINARY_NAME=krankybearnotify
+BINARY_NAME=notify
 
 # Build directory
 BUILD_DIR=bin
@@ -35,46 +40,44 @@ build-webview:
 build-all: build-linux build-darwin build-windows
 
 build-linux:
-	@echo "==================== Linux Build Instructions ===================="
-	@echo "Cross-compiling Fyne apps from macOS to Linux requires fyne-cross"
+	@echo "Building for Linux..."
+	@mkdir -p $(BUILD_DIR)
+	@echo "Note: Cross-compiling Fyne apps from macOS to Linux requires fyne-cross"
+	@echo "For direct compilation, use: ./compile-linux.sh"
 	@echo ""
 	@echo "Option 1 - Use fyne-cross (Docker-based, works from macOS):"
 	@echo "  go install github.com/fyne-io/fyne-cross@latest"
 	@echo "  fyne-cross linux -arch=amd64,arm64"
 	@echo ""
 	@echo "Option 2 - Build directly on Linux:"
-	@echo "  go build -ldflags=\"-w -s\" -o krankybearnotify"
+	@echo "  go build -ldflags=\"-w -s\" -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64"
 	@echo "=================================================================="
 	@false
 
 build-darwin:
 	@echo "Building for macOS..."
 	@mkdir -p $(BUILD_DIR)
-	# GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-amd64 -v
-	# GOOS=darwin GOARCH=arm64 $(GOBUILD) -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-darwin-arm64 -v
-	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 $(GOBUILD) -ldflags="-w -s" -o bin/MacOSARM64/
-	GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 $(GOBUILD) -ldflags="-w -s" -o bin/MacOSAMD64/
+	GOOS=darwin GOARCH=arm64 CGO_ENABLED=1 $(GOBUILD) -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-macos-arm64
+	GOOS=darwin GOARCH=amd64 CGO_ENABLED=1 $(GOBUILD) -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-macos-amd64
 	# set executable icon
-	./setIcon.sh Resources/Images/KrankyBearBeret.png bin/MacOSARM64/krankybearnotify
-	./setIcon.sh Resources/Images/KrankyBearBeret.png bin/MacOSAMD64/krankybearnotify
-	cp bin/MacOSARM64/krankybearnotify Resources/Images/krankybearnotify-darwin-arm64
-	cp bin/MacOSAMD64/krankybearnotify .
+	./setIcon.sh Resources/Images/KrankyBearBeret.png $(BUILD_DIR)/$(BINARY_NAME)-macos-arm64
+	./setIcon.sh Resources/Images/KrankyBearBeret.png $(BUILD_DIR)/$(BINARY_NAME)-macos-amd64
+	cp $(BUILD_DIR)/$(BINARY_NAME)-macos-arm64 ./notify
 
 build-windows:
 	@echo "Building for Windows..."
 	@mkdir -p $(BUILD_DIR)
 	@echo "Note: Requires mingw-w64 (brew install mingw-w64 on macOS)"
-	# GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc" $(GOBUILD) -ldflags="-w -s -H windowsgui" -o $(BUILD_DIR)/$(BINARY_NAME)-windows-amd64.exe -v
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc" $(GOBUILD) -ldflags="-w -s -H windowsgui" -o bin/WindowsAMD64/krankybearnotify.exe -v
-	# GOOS=windows GOARCH=arm64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc" $(GOBUILD) -ldflags="-w -s -H windowsgui" -o bin/WindowsARM64/krankybearnotify.exe -v
-	./setIcon.sh Resources/Images/KrankyBearBeret.png bin/WindowsAMD64/krankybearnotify.exe
+	@echo "Note: Console window enabled so flags (-version, -help) work. Use Start-Process -WindowStyle Hidden to hide."
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc" $(GOBUILD) -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-win-amd64.exe -v
+	./setIcon.sh Resources/Images/KrankyBearBeret.png $(BUILD_DIR)/$(BINARY_NAME)-win-amd64.exe
 
 build-windows-debug:
 	@echo "Building Windows DEBUG version (with console output)..."
-	@mkdir -p bin/WindowsAMD64
+	@mkdir -p $(BUILD_DIR)
 	@echo "Note: This version shows console output for troubleshooting"
-	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc" $(GOBUILD) -ldflags="-w -s" -o bin/WindowsAMD64/krankybearnotify-debug.exe -v
-	@echo "Debug build created: bin/WindowsAMD64/krankybearnotify-debug.exe"
+	GOOS=windows GOARCH=amd64 CGO_ENABLED=1 CC="x86_64-w64-mingw32-gcc" $(GOBUILD) -ldflags="-w -s" -o $(BUILD_DIR)/$(BINARY_NAME)-win-debug.exe -v
+	@echo "Debug build created: $(BUILD_DIR)/$(BINARY_NAME)-win-debug.exe"
 
 build-windows-webview:
 	@echo "==========================================================================="
@@ -91,7 +94,7 @@ build-windows-webview:
 	@echo "  3. Run these commands on Windows:"
 	@echo "       go get github.com/webview/webview_go"
 	@echo "       go mod tidy"
-	@echo "       go build -tags webview -o krankybearnotify-webview.exe"
+	@echo "       go build -tags webview -o notify-webview.exe"
 	@echo ""
 	@echo "Or use the build script: build-webview-windows.bat"
 	@echo ""
@@ -107,7 +110,7 @@ build-windows-webview-debug:
 	@echo "WebView requires building directly on Windows with the Windows SDK."
 	@echo ""
 	@echo "To build WebView debug version on Windows:"
-	@echo "       go build -tags webview -o krankybearnotify-webview-debug.exe"
+	@echo "       go build -tags webview -o notify-webview-debug.exe"
 	@echo ""
 	@echo "See: WINDOWS_VM_BUILD_INSTRUCTIONS.md for complete instructions"
 	@echo "==========================================================================="

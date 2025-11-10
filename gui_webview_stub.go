@@ -6,7 +6,7 @@ package main
 import "fmt"
 
 // showWebViewNotification stub when webview is not available
-func showWebViewNotification(title, message string, timeout int, iconPath string, width, height int) error {
+func showWebViewNotification(title, message string, timeout int, iconPath string, width, height int, buttonText string) error {
 	return fmt.Errorf("webview support not compiled in (use build tag: -tags webview)")
 }
 

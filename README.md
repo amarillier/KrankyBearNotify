@@ -51,8 +51,8 @@ The app automatically selects the best available GUI method:
 - Auto-expiry notifications
 
 **Test availability:**
-- OpenGL: `./krankybearnotify -check-opengl`
-- Wall: `./krankybearnotify -check-wall` (Linux only)
+- OpenGL: `./notify -check-opengl`
+- Wall: `./notify -check-wall` (Linux only)
 
 ## Installation
 - This is a standalone / portable app
@@ -122,7 +122,7 @@ fyne-cross linux -arch=amd64,arm64
 
 Or build directly on Linux:
 ```bash
-go build -ldflags="-w -s" -o krankybearnotify
+go build -ldflags="-w -s" -o notify
 ```
 
 **Note:** Simple `GOOS=linux go build` doesn't work for Fyne apps because they require CGO and Linux-specific libraries.
@@ -142,23 +142,23 @@ go mod download
 Show help message with all options and examples:
 
 ```bash
-./krankybearnotify           # No arguments shows help
-./krankybearnotify -h        # Also shows help
-./krankybearnotify -help     # Also shows help
+./notify           # No arguments shows help
+./notify -h        # Also shows help
+./notify -help     # Also shows help
 ```
 
 Show version information:
 
 ```bash
-./krankybearnotify -version
+./notify -version
 ```
 
 Check for updates:
 
 ```bash
-./krankybearnotify -checkupdate
+./notify -checkupdate
 # or use the short alias
-./krankybearnotify -cu
+./notify -cu
 ```
 
 **Note:** Update check data is saved to `latestcheck.json` in the same directory as the executable.
@@ -168,31 +168,84 @@ Check for updates:
 Show a notification with default settings:
 
 ```bash
-./krankybearnotify
+./notify
 ```
 
 ### Custom Notification
 
 ```bash
-./krankybearnotify -title "Important Alert" -message "Your task is complete!" -timeout 5
+./notify -title "Important Alert" -message "Your task is complete!" -timeout 5
 ```
 
 ### Notification with Icon
 
 ```bash
-./krankybearnotify -title "Build Complete" -message "Your project built successfully!" -icon "./KrankyBearBeret.png" -timeout 10
+./notify -title "Build Complete" -message "Your project built successfully!" -icon "./KrankyBearBeret.png" -timeout 10
+```
+
+**Icon Path Handling:**
+- **Just a filename**: Looks in the executable's directory
+  ```bash
+  -icon "tanium.png"  # Looks for tanium.png next to the executable
+  ```
+- **Case-insensitive matching** (Linux/macOS): Automatically finds correct case
+  ```bash
+  -icon "minibot.png"  # Finds MiniBot.png, miniBot.png, etc.
+  ```
+- **Full path**: Uses path as specified
+  ```bash
+  -icon "/opt/icons/logo.png"  # Uses exact path
+  ```
+- **Relative path**: Resolves from executable directory
+  ```bash
+  -icon "./images/icon.png"  # Looks in images/ subdirectory
+  ```
+
+### Custom Button Text
+
+You can customize the button text from the default "OK" to any text you prefer:
+
+```bash
+# Use custom button text
+./notify -title "Please Confirm" -message "Action completed" -button "Got it!"
+
+# Different examples
+./notify -title "Alert" -message "Check this" -button "Close"
+./notify -title "Info" -message "Important message" -button "Dismiss"
+```
+
+### URL/Percent-Encoded Parameters
+
+The title, message, icon path, and button text parameters support URL/percent encoding, which is automatically decoded. This is useful when calling from scripts or web applications where special characters need to be encoded:
+
+```bash
+# Encoded spaces and special characters
+./notify -title "Build%20Complete" -message "Path:%20/home/user%2Fproject"
+
+# Will display as: "Build Complete" / "Path: /home/user/project"
+
+# With encoded icon path
+./notify -title "Alert" -message "Status" -icon "%2Fpath%2Fto%2Fmy%20icon.png"
+
+# Common encodings:
+# %20 = space
+# %2F = /
+# %2D = -
+# %3A = :
+# %3D = =
 ```
 
 ### Command-Line Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `-title` | Notification title | "Notification" |
-| `-message` | Notification message | "This is a notification message" |
+| `-title` | Notification title (URL/percent-encoded characters will be decoded) | "Notification" |
+| `-message` | Notification message (URL/percent-encoded characters will be decoded) | "This is a notification message" |
+| `-button` | Button text (URL/percent-encoded characters will be decoded) | "OK" |
 | `-timeout` | Auto-close timeout in seconds (0 for no timeout) | 10 |
 | `-width` | Window width in pixels | 400 |
 | `-height` | Window height in pixels | 250 |
-| `-icon`, `-image` | Path to icon image file (PNG, JPEG, etc.) | "" (no icon) |
+| `-icon`, `-image` | Path to icon image file (PNG, JPEG, etc.) (URL/percent-encoded characters will be decoded) | "" (no icon) |
 | `-check-gui` | Check if GUI mode is available and exit | false |
 | `-check-opengl` | Check if OpenGL is available and exit (Windows) | false |
 | `-check-wall` | Check if wall broadcast is available (Linux) and exit | false |
@@ -207,7 +260,7 @@ Show a notification with default settings:
 To check if a GUI environment is available without showing a notification:
 
 ```bash
-./krankybearnotify -check-gui
+./notify -check-gui
 ```
 
 This will exit with code 0 if GUI is available, or code 1 if not.
@@ -217,7 +270,7 @@ This will exit with code 0 if GUI is available, or code 1 if not.
 On Windows systems, check if OpenGL drivers are actually functional (not just if the DLL exists):
 
 ```bash
-./krankybearnotify -check-opengl
+./notify -check-opengl
 ```
 
 The detection performs a comprehensive test:
@@ -235,13 +288,13 @@ If OpenGL is not available, the app automatically falls back to:
 
 **Example in a VM without GPU:**
 ```bash
-$ ./krankybearnotify -check-opengl
+$ ./notify -check-opengl
 OpenGL check: No suitable pixel format found (likely no OpenGL drivers)
 OpenGL is not available
 Will use native Windows MessageBox as fallback
 Exit code: 1
 
-$ ./krankybearnotify -title "Test" -message "This works!"
+$ ./notify -title "Test" -message "This works!"
 # Automatically uses MessageBox - no crash!
 ```
 
@@ -252,7 +305,7 @@ See [OPENGL_DETECTION_IMPROVED.md](OPENGL_DETECTION_IMPROVED.md) for technical d
 If you're running in a VM where OpenGL detection passes but Fyne still fails to initialize, use the `-force-basic` flag to skip OpenGL entirely:
 
 ```bash
-./krankybearnotify -force-basic -title "VM Test" -message "This bypasses OpenGL"
+./notify -force-basic -title "VM Test" -message "This bypasses OpenGL"
 ```
 
 **When to use:**
@@ -270,7 +323,7 @@ If you're running in a VM where OpenGL detection passes but Fyne still fails to 
 **Example for scripts:**
 ```bash
 # Always use basic mode in VM
-krankybearnotify.exe -force-basic -title "Alert" -message "Server status"
+notify.exe -force-basic -title "Alert" -message "Server status"
 ```
 
 See [IMMEDIATE_WORKAROUND.md](IMMEDIATE_WORKAROUND.md) for more details.
@@ -284,12 +337,12 @@ If you want a better UI than MessageBox with animations and auto-close support:
 REM On Windows VM
 go get github.com/webview/webview_go
 go mod tidy
-go build -tags webview -o krankybearnotify.exe
+go build -tags webview -o notify.exe
 ```
 
 **Then use force-webview flag:**
 ```cmd
-krankybearnotify.exe -force-webview -title "Modern Alert" -message "Beautiful HTML/CSS UI!"
+notify.exe -force-webview -title "Modern Alert" -message "Beautiful HTML/CSS UI!"
 ```
 
 **Benefits over MessageBox:**
@@ -302,7 +355,7 @@ krankybearnotify.exe -force-webview -title "Modern Alert" -message "Beautiful HT
 **Recommended for VMs:**
 ```cmd
 REM Best option for your Proxmox VM
-krankybearnotify.exe -force-webview -title "Alert" -message "Much better than MessageBox!"
+notify.exe -force-webview -title "Alert" -message "Much better than MessageBox!"
 ```
 
 See [BUILD_WEBVIEW_WINDOWS.md](BUILD_WEBVIEW_WINDOWS.md) for detailed build instructions.
@@ -314,7 +367,7 @@ See [BUILD_WEBVIEW_WINDOWS.md](BUILD_WEBVIEW_WINDOWS.md) for detailed build inst
 On Linux systems, check if the `wall` command is available for broadcasting to all logged-in users:
 
 ```bash
-./krankybearnotify -check-wall
+./notify -check-wall
 ```
 
 This is useful for headless servers or SSH sessions where no GUI is available. The app will automatically use wall broadcast as a fallback when no GUI is detected.
@@ -339,42 +392,69 @@ All logged-in users will see this message in their terminal.
 ### Simple Notification
 
 ```bash
-./krankybearnotify -title "Hello" -message "World!"
+./notify -title "Hello" -message "World!"
 ```
 
 ### Long-Running Notification
 
 ```bash
-./krankybearnotify -title "Manual Close" -message "Click OK to close" -timeout 0
+./notify -title "Manual Close" -message "Click OK to close" -timeout 0
 ```
 
 ### Quick Alert
 
 ```bash
-./krankybearnotify -title "Quick Alert" -message "This will close in 3 seconds" -timeout 3
+./notify -title "Quick Alert" -message "This will close in 3 seconds" -timeout 3
 ```
 
 ### Custom Icon Notification
 
 ```bash
 # Use one of the bundled KrankyBear icons
-./krankybearnotify -title "Success!" -message "Operation completed" -icon "./KrankyBearFedoraRed.png"
+./notify -title "Success!" -message "Operation completed" -icon "./KrankyBearFedoraRed.png"
 
 # Use your own custom icon (can also use -image as an alias for -icon)
-./krankybearnotify -title "Alert" -message "Custom notification" -image "/path/to/your/icon.png"
+./notify -title "Alert" -message "Custom notification" -image "/path/to/your/icon.png"
+```
+
+### Custom Button Text
+
+```bash
+# Use custom button text
+./notify -title "Deployment Complete" -message "Application deployed successfully" -button "Awesome!"
+
+# Different button styles
+./notify -title "Warning" -message "Low disk space" -button "Dismiss" -timeout 0
+./notify -title "Confirmation" -message "Settings saved" -button "Close" -timeout 3
+```
+
+### URL-Encoded Parameters
+
+```bash
+# When parameters come from web applications or scripts
+./notify -title "Server%20Status" -message "Backup%20completed%20at%20%2Fvar%2Fbackups"
+# Displays: "Server Status" / "Backup completed at /var/backups"
+
+# Useful for automation where special characters are encoded
+./notify -title "Build%20%23123%20-%20Success" -message "Branch%3A%20feature%2Fuser-login"
+# Displays: "Build #123 - Success" / "Branch: feature/user-login"
+
+# URL-encoded button text
+./notify -title "Done" -message "Task complete" -button "Got%20it%21"
+# Button displays: "Got it!"
 ```
 
 ### Custom Window Dimensions
 
 ```bash
 # Make a larger window for more content
-./krankybearnotify -title "Large Notification" -message "This is a larger window with more space for text" -width 600 -height 350
+./notify -title "Large Notification" -message "This is a larger window with more space for text" -width 600 -height 350
 
 # Make a smaller, compact notification
-./krankybearnotify -title "Compact" -message "Small alert" -width 300 -height 150
+./notify -title "Compact" -message "Small alert" -width 300 -height 150
 
 # Custom size with icon and long message
-./krankybearnotify -title "Custom Layout" -message "A notification with custom dimensions and an icon. The text will wrap properly to fit the window width." -icon "./KrankyBearBeret.png" -width 500 -height 300
+./notify -title "Custom Layout" -message "A notification with custom dimensions and an icon. The text will wrap properly to fit the window width." -icon "./KrankyBearBeret.png" -width 500 -height 300
 ```
 
 ### Script Integration
@@ -383,8 +463,8 @@ All logged-in users will see this message in their terminal.
 #!/bin/bash
 
 # Check if GUI is available before showing notification
-if ./krankybearnotify -check-gui; then
-    ./krankybearnotify -title "Backup Complete" -message "Your backup finished successfully"
+if ./notify -check-gui; then
+    ./notify -title "Backup Complete" -message "Your backup finished successfully"
 else
     echo "GUI not available, skipping notification"
 fi
@@ -420,20 +500,20 @@ If you're running this on a Linux server without a GUI, the application will aut
 
 ```bash
 # Check GUI status
-$ ./krankybearnotify -check-gui
+$ ./notify -check-gui
 GUI mode is not available
 $ echo $?
 1
 
 # Check wall broadcast status
-$ ./krankybearnotify -check-wall
+$ ./notify -check-wall
 Wall broadcast is available
 Can send notifications to all logged-in users
 $ echo $?
 0
 
 # Send a notification (will use wall broadcast automatically)
-$ ./krankybearnotify -title "Server Alert" -message "Backup completed"
+$ ./notify -title "Server Alert" -message "Backup completed"
 GUI not available, using wall broadcast
 
 Broadcast Message from root@server
@@ -460,11 +540,20 @@ On macOS, the application checks if the WindowServer process is running. This is
 
 On Windows, the application checks if the process has access to a window station, which indicates GUI availability.
 
+**Zombie Process Prevention (VMs):**
+
+Windows VMs often have partial OpenGL support that passes detection but causes Fyne to hang invisibly. The application includes automatic protection:
+- Fyne GUI has a built-in zombie prevention timeout
+- Timeout is calculated as: `max(notification_timeout + 15 seconds, 30 seconds minimum)`
+- If Fyne hangs and doesn't respond, the process automatically quits
+- Log messages indicate when zombie prevention activates
+- Recommended: Use `-win-basic` or `-win-webview` flags in VMs to bypass OpenGL entirely
+
 **GUI Fallback System:**
 
 The app tries multiple notification methods in order:
 
-1. **Fyne (OpenGL)** - Full-featured modern UI
+1. **Fyne (OpenGL)** - Full-featured modern UI (with zombie prevention on Windows)
 2. **WebView (HTML/JS)** - Web-based UI when OpenGL unavailable (optional build)
 3. **Native Dialog** - Basic text notifications (Windows MessageBox, etc.)
 4. **Wall Broadcast** - Terminal broadcast to all users (Linux only, when no GUI)
@@ -483,10 +572,10 @@ The app tries multiple notification methods in order:
 Test methods availability:
 ```bash
 # Test OpenGL
-krankybearnotify -check-opengl
+notify -check-opengl
 
 # Test wall broadcast (Linux)
-krankybearnotify -check-wall
+notify -check-wall
 ```
 
 **Fallback Comparison:**
@@ -556,13 +645,13 @@ Test the `graphical.target` detection on any desktop environment:
 systemctl is-active graphical.target
 
 # Test with environment variables (X11 - GNOME, KDE, XFCE, etc.)
-DISPLAY=:0 ./krankybearnotify -check-gui
+DISPLAY=:0 ./notify -check-gui
 
 # Test with Wayland (GNOME Wayland, KDE Wayland, Sway, etc.)
-WAYLAND_DISPLAY=wayland-0 ./krankybearnotify -check-gui
+WAYLAND_DISPLAY=wayland-0 ./notify -check-gui
 
 # Quick test notification on your current desktop
-./krankybearnotify -title "Desktop Test" -message "If you see this, it works on your DE!" -timeout 5
+./notify -title "Desktop Test" -message "If you see this, it works on your DE!" -timeout 5
 ```
 
 **Testing on Different Desktop Environments:**
@@ -585,7 +674,7 @@ Test WindowServer detection:
 pgrep -x WindowServer
 
 # Run the GUI check
-./krankybearnotify -check-gui
+./notify -check-gui
 ```
 
 ### Windows
@@ -594,7 +683,7 @@ Test window station detection:
 
 ```powershell
 # Run the GUI check
-.\krankybearnotify.exe -check-gui
+.\notify.exe -check-gui
 ```
 
 ## Multi-User Support
@@ -612,7 +701,7 @@ Description=KrankyBear Notification Service
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/krankybearnotify -title "System Alert" -message "Your notification here"
+ExecStart=/usr/local/bin/notify -title "System Alert" -message "Your notification here"
 
 [Install]
 WantedBy=default.target
@@ -631,7 +720,7 @@ Create a launch agent:
     <string>com.krankybear.notify</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/usr/local/bin/krankybearnotify</string>
+        <string>/usr/local/bin/notify</string>
         <string>-title</string>
         <string>System Alert</string>
         <string>-message</string>
@@ -657,9 +746,90 @@ This error occurs when the application cannot detect a graphical environment. Ch
 
 ### Notification Doesn't Appear
 
-1. Check if GUI is available: `./krankybearnotify -check-gui`
+1. Check if GUI is available: `./notify -check-gui`
 2. Verify the timeout isn't too short
 3. Check if the window is appearing behind other windows
+
+### Linux: GUI Notifications Fail When Running as Root from `/opt/` or Other Root-Owned Directories
+
+**Symptom**: When running `sudo /opt/xxx/notify`, wall broadcasts work but GUI notifications to logged-in users don't appear.
+
+**Cause**: When the executable is in a root-owned directory with restrictive permissions (like `/opt/Tanium/`), regular users may not be able to access the file because:
+1. The executable file itself doesn't have world-readable and world-executable permissions
+2. **Parent directories in the path don't have world r-x permissions**
+
+**Solution**: The application now automatically handles this:
+- Checks and fixes **all parent directory permissions** in the executable path
+- Checks if the executable file has world-readable and world-executable permissions (r-x)
+- Temporarily adjusts permissions to `0555` (r-x for all) when needed
+- Restores original permissions after notification completes
+- Logs all permission changes for transparency
+
+**Best Practices for Installation**:
+
+```bash
+# Option 1: Install with proper permissions (recommended)
+sudo cp notify /opt/notify/
+sudo chmod 555 /opt/notify/notify  # Make readable+executable by all users
+sudo /opt/notify/notify -title "Test" -message "Should work now"
+
+# Option 2: Install in system PATH location
+sudo cp notify /usr/local/bin/
+sudo chmod 555 /usr/local/bin/notify  # r-x for all
+sudo notify -title "Test" -message "Works!"
+
+# Option 3: If you want root to be able to write (755 instead of 555)
+sudo cp notify /opt/notify/
+sudo chmod 755 /opt/notify/notify  # rwxr-xr-x
+sudo /opt/notify/notify -title "Test" -message "Works!"
+
+# Option 4: Use symlink from user's home directory
+sudo ln -s /home/youruser/notify /usr/local/bin/notify
+sudo notify -title "Test" -message "Works via symlink"
+```
+
+**Debugging**: Run with elevated privileges to see detailed logs:
+```bash
+sudo /opt/xxx/notify -title "Debug" -message "Check logs"
+# Look for messages like:
+# "Note: Temporarily making directory accessible: /opt/Tanium (0750 -> 0755)"
+# "Note: Temporarily making directory accessible: /opt/Tanium/TaniumClient (0750 -> 0755)"
+# "Note: Temporarily making executable accessible for user..."
+# Any errors will be displayed in stderr
+```
+
+If you see the directory permission messages, the application is working correctly and will restore permissions after the notification timeout.
+
+### Windows: Zombie Processes in VMs
+
+**Symptom**: Notification processes remain running indefinitely without showing a window (common in Proxmox, VirtualBox, VMware VMs without GPU passthrough).
+
+**Cause**: OpenGL detection passes but Fyne GUI hangs during initialization due to incomplete GPU driver support.
+
+**Solutions** (in order of preference):
+
+```powershell
+# Option 1: Use MessageBox mode (always works, basic UI)
+.\notify.exe -win-basic -title "VM Alert" -message "Reliable in VMs"
+
+# Option 2: Use WebView mode (better UI, requires webview build)
+.\notify.exe -win-webview -title "VM Alert" -message "Modern UI without OpenGL"
+
+# Option 3: Let automatic zombie prevention handle it
+.\notify.exe -title "Test" -message "Will auto-quit if hung" -timeout 10
+# Will automatically quit after 25 seconds (10 + 15) if Fyne hangs
+# Check logs for: "Warning: Zombie prevention timeout reached"
+```
+
+**How Zombie Prevention Works:**
+- Automatically activates on Windows when using Fyne GUI
+- Calculates timeout: `max(your_timeout + 15 seconds, 30 seconds)`
+- If window doesn't respond, forces graceful quit + exit
+- Example: `-timeout 10` → zombie prevention at 25 seconds
+- Example: `-timeout 0` → zombie prevention at 30 seconds (minimum)
+
+**Recommended for automation:**
+Always use `-win-basic` or `-win-webview` in VM environments to avoid OpenGL entirely.
 
 ### Build Errors
 

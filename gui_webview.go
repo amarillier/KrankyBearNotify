@@ -15,7 +15,29 @@ import (
 
 // showWebViewNotification shows a notification using HTML/CSS/JavaScript in a webview
 // This is a fallback when OpenGL is not available but webview is
-func showWebViewNotification(title, message string, timeout int, iconPath string, width, height int) error {
+func showWebViewNotification(title, message string, timeout int, iconPath string, width, height int, buttonText string) error {
+	// On Windows, set a custom user data folder to avoid permission issues
+	// when running as SYSTEM (e.g., via scheduled tasks)
+	// WebView2 needs a writable location for its cache/data
+	if os.Getenv("WEBVIEW2_USER_DATA_FOLDER") == "" {
+		// Use the directory where notify.exe is located
+		exePath, err := os.Executable()
+		if err == nil {
+			// Get directory path (remove the executable filename)
+			exeDir := exePath[:len(exePath)-len("\\notify.exe")]
+			webviewDataDir := exeDir + "\\webview-data"
+			os.Setenv("WEBVIEW2_USER_DATA_FOLDER", webviewDataDir)
+			log.Printf("WebView: Set custom user data folder to %s", webviewDataDir)
+
+			// Try to create the directory if it doesn't exist
+			if err := os.MkdirAll(webviewDataDir, 0755); err != nil {
+				log.Printf("WebView: Warning - could not create data directory: %v", err)
+			}
+		} else {
+			log.Printf("WebView: Warning - could not determine executable path: %v", err)
+		}
+	}
+
 	// Create webview
 	w := webview.New(false)
 	defer w.Destroy()
@@ -26,13 +48,17 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
 	// Load and encode the icon as base64 if provided
 	iconHTML := `<span class="icon">📢</span>`
 	if iconPath != "" {
-		if imageData, err := os.ReadFile(iconPath); err == nil {
+		// Resolve icon path (look in executable directory if just a filename)
+		actualPath := resolveIconPath(iconPath)
+		log.Printf("WebView: Loading icon from: %s", actualPath)
+
+		if imageData, err := os.ReadFile(actualPath); err == nil {
 			// Encode to base64
 			base64Image := base64.StdEncoding.EncodeToString(imageData)
 			// Detect image type (simple detection based on file extension)
 			mimeType := "image/png"
-			if len(iconPath) > 4 {
-				ext := iconPath[len(iconPath)-4:]
+			if len(actualPath) > 4 {
+				ext := actualPath[len(actualPath)-4:]
 				switch ext {
 				case ".jpg", "jpeg":
 					mimeType = "image/jpeg"
@@ -45,8 +71,9 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
 				}
 			}
 			iconHTML = fmt.Sprintf(`<img class="icon-img" src="data:%s;base64,%s" alt="Icon">`, mimeType, base64Image)
+			log.Printf("WebView: Successfully loaded and encoded icon")
 		} else {
-			log.Printf("Warning: Could not read icon file: %v", err)
+			log.Printf("Warning: Could not read icon file '%s': %v", actualPath, err)
 		}
 	}
 
@@ -154,7 +181,7 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
         </div>
         <div class="message">%s</div>
         <div class="button-container">
-            <button class="ok-button" onclick="closeWindow()">OK</button>
+            <button class="ok-button" onclick="closeWindow()">%s</button>
         </div>
         <div class="timer" id="timer"></div>
     </div>
@@ -183,7 +210,7 @@ func showWebViewNotification(title, message string, timeout int, iconPath string
     </script>
 </body>
 </html>
-`, iconHTML, title, message, timeout)
+`, iconHTML, title, message, buttonText, timeout)
 
 	// Bind the close function BEFORE setting HTML and running
 	w.Bind("closeApp", func() {
